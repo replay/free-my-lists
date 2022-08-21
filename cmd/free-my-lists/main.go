@@ -13,8 +13,8 @@ import (
 func main() {
 	ctx := context.Background()
 	conf := &oauth2.Config{
-		ClientID:     "82a836e2e06b4facb185aa520131a544",
-		ClientSecret: "40f5df08b3c74c4fb9c84e11ad48108f",
+		ClientID:     "",
+		ClientSecret: "",
 		Scopes:       []string{"user-library-read"},
 		Endpoint:     spotify.Endpoint,
 		RedirectURL:  "https://free-my-lists.click/callback",
