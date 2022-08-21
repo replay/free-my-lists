@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"log"
 
 	"golang.org/x/oauth2"
@@ -14,8 +15,9 @@ func main() {
 	conf := &oauth2.Config{
 		ClientID:     "82a836e2e06b4facb185aa520131a544",
 		ClientSecret: "40f5df08b3c74c4fb9c84e11ad48108f",
-		Scopes:       []string{"playlist-read-private"},
+		Scopes:       []string{"user-library-read"},
 		Endpoint:     spotify.Endpoint,
+		RedirectURL:  "https://free-my-lists.click/callback",
 	}
 
 	// Redirect user to consent page to ask for permission
@@ -37,10 +39,15 @@ func main() {
 	}
 
 	client := conf.Client(ctx, tok)
-	resp, err := client.Get("https://api.spotify.com/v1/me/playlists")
+	resp, err := client.Get("https://api.spotify.com/v1/me/tracks")
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("response: %+v\n", resp)
+	tracks, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("response:\n%+v\n", string(tracks))
 }
