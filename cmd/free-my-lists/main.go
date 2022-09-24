@@ -1,53 +1,32 @@
 package main
 
 import (
-	"context"
-	"fmt"
-	"io/ioutil"
-	"log"
+	"os"
+	"os/signal"
+	"syscall"
 
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/spotify"
+	"github.com/replay/free-my-lists/pkg/config"
+	"github.com/replay/free-my-lists/pkg/web"
 )
 
 func main() {
-	ctx := context.Background()
-	conf := &oauth2.Config{
-		ClientID:     "",
-		ClientSecret: "",
-		Scopes:       []string{"user-library-read"},
-		Endpoint:     spotify.Endpoint,
-		RedirectURL:  "https://free-my-lists.click/callback",
+
+	if len(os.Args) < 2 {
+		panic("missing config file")
 	}
 
-	// Redirect user to consent page to ask for permission
-	// for the scopes specified above.
-	url := conf.AuthCodeURL("state", oauth2.AccessTypeOffline)
-	fmt.Printf("Visit the URL for the auth dialog: %v", url)
-
-	// Use the authorization code that is pushed to the redirect
-	// URL. Exchange will do the handshake to retrieve the
-	// initial access token. The HTTP Client returned by
-	// conf.Client will refresh the token as necessary.
-	var code string
-	if _, err := fmt.Scan(&code); err != nil {
-		log.Fatal(err)
-	}
-	tok, err := conf.Exchange(ctx, code)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	client := conf.Client(ctx, tok)
-	resp, err := client.Get("https://api.spotify.com/v1/me/tracks")
+	conf, err := config.GetConfig(os.Args[1])
 	if err != nil {
 		panic(err)
 	}
 
-	tracks, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		panic(err)
-	}
+	w := web.New(conf)
 
-	fmt.Printf("response:\n%+v\n", string(tracks))
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		w.Shutdown()
+		os.Exit(1)
+	}()
 }
