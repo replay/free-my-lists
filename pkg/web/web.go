@@ -33,7 +33,7 @@ func New(cfg config.Config) Web {
 	w.router.Use(sessions.Sessions("goquestsession", w.store))
 	w.router.LoadHTMLGlob(cfg.Templates)
 
-	w.router.GET("/index", w.indexHandler)
+	w.router.GET("/", w.indexHandler)
 	w.router.GET("/login", w.loginHandler)
 	w.router.GET("/auth", w.authHandler)
 
