@@ -5,7 +5,6 @@ go 1.19
 require (
 	github.com/gin-gonic/contrib v0.0.0-20201101042839-6a891bf89f19
 	github.com/gin-gonic/gin v1.8.1
-	github.com/zalando/gin-oauth2 v1.5.3
 	golang.org/x/oauth2 v0.0.0-20220808172628-8227340efae7
 )
 
@@ -17,7 +16,6 @@ require (
 	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/go-playground/validator/v10 v10.10.0 // indirect
 	github.com/goccy/go-json v0.9.7 // indirect
-	github.com/golang/glog v1.0.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/gorilla/context v1.1.1 // indirect

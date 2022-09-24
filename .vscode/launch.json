@@ -8,10 +8,10 @@
             "request": "launch",
             "type": "go",
             "name": "launch free-my-lists",
-            "cwd": "/home/replay/go/src/github.com/replay/free-my-lists",
-            "program": "/home/replay/go/src/github.com/replay/free-my-lists/cmd/free-my-lists",
+            "cwd": "/Users/replay/go/src/github.com/replay/free-my-lists",
+            "program": "/Users/replay/go/src/github.com/replay/free-my-lists/cmd/free-my-lists",
             "args": [
-                "/home/replay/go/src/github.com/replay/free-my-lists/free-my-lists-cfg.json"
+                "/Users/replay/go/src/github.com/replay/free-my-lists/free-my-lists-cfg.json"
             ]
         }
     ]

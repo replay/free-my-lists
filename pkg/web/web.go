@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -89,7 +90,13 @@ func (w *Web) authHandler(c *gin.Context) {
 		return
 	}
 
-	session.Set("token", tok)
+	tokSerialized, err := json.Marshal(tok)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	session.Set("token", tokSerialized)
 	session.Save()
 
 	client := w.cfg.OauthProviders.Google.Client(context.Background(), tok)
@@ -113,8 +120,15 @@ func (w *Web) indexHandler(c *gin.Context) {
 
 func (w *Web) welcomeHandler(c *gin.Context) {
 	session := sessions.Default(c)
-	tok := session.Get("token")
-	client := w.cfg.OauthProviders.Google.Client(context.Background(), tok.(*oauth2.Token))
+	tokSerialized := session.Get("token").([]byte)
+	var tok *oauth2.Token
+	err := json.Unmarshal(tokSerialized, &tok)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	client := w.cfg.OauthProviders.Google.Client(context.Background(), tok)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)

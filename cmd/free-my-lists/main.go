@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -10,12 +12,16 @@ import (
 )
 
 func main() {
+	var configFile string
 
-	if len(os.Args) < 2 {
-		panic("missing config file")
+	flag.StringVar(&configFile, "config.file", "free-my-lists.json", "Path to the config file")
+	flag.Parse()
+
+	if len(configFile) == 0 {
+		log.Fatal("no config file specified")
 	}
 
-	conf, err := config.GetConfig(os.Args[1])
+	conf, err := config.GetConfig(configFile)
 	if err != nil {
 		panic(err)
 	}
