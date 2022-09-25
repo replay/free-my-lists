@@ -48,9 +48,9 @@ func (c *Config) setDefaults() {
 
 	c.OauthProviders.Google.Endpoint = oauthGoogle.Endpoint
 	c.OauthProviders.Google.Scopes = []string{"https://www.googleapis.com/auth/userinfo.email"}
-	c.OauthProviders.Google.RedirectURL = c.Domain + "/auth"
+	c.OauthProviders.Google.RedirectURL = c.Domain + "/auth/google"
 
 	c.OauthProviders.Spotify.Endpoint = oauthSpotify.Endpoint
 	c.OauthProviders.Spotify.Scopes = []string{"user-library-read"}
-	c.OauthProviders.Spotify.RedirectURL = c.Domain + "/auth"
+	c.OauthProviders.Spotify.RedirectURL = c.Domain + "/auth/spotify"
 }

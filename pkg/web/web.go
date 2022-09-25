@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -12,10 +11,11 @@ import (
 	"github.com/gin-gonic/contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/replay/free-my-lists/pkg/config"
-	"golang.org/x/oauth2"
+	"github.com/replay/free-my-lists/pkg/provider"
+	"github.com/replay/free-my-lists/pkg/web/token"
 )
 
-const accessTokenId = "access_token"
+const tokenCookie = "access_token"
 
 type Web struct {
 	cfg     config.Config
@@ -39,7 +39,8 @@ func New(cfg config.Config) Web {
 	w.router.GET("/", w.indexHandler)
 	w.router.GET("/login", w.loginHandler)
 	w.router.GET("/logout", w.logoutHandler)
-	w.router.GET("/auth", w.authHandler)
+	w.router.GET("/auth/google", w.authGoogleHandler)
+	w.router.GET("/auth/spotify", w.authSpotifyHandler)
 
 	// Logged in area.
 	w.private = w.router.Group("/members")
@@ -54,7 +55,7 @@ func New(cfg config.Config) Web {
 func (w *Web) requireLogin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		session := sessions.Default(c)
-		tok := session.Get(accessTokenId)
+		tok := session.Get(tokenCookie)
 		if tok == nil {
 			c.Abort()
 			c.Redirect(http.StatusFound, w.cfg.Domain)
@@ -79,17 +80,28 @@ func (w *Web) loginHandler(c *gin.Context) {
 	session := sessions.Default(c)
 	session.Set("state", state)
 	session.Save()
-	c.Writer.Write([]byte("<html><title>Golang Google</title> <body> <a href='" + w.cfg.OauthProviders.Google.AuthCodeURL(state) + "'><button>Login with Google!</button> </a> </body></html>"))
+	c.HTML(http.StatusOK, "login.tmpl", gin.H{
+		"loginSpotify": w.cfg.OauthProviders.Spotify.AuthCodeURL(state),
+		"loginGoogle":  w.cfg.OauthProviders.Google.AuthCodeURL(state),
+	})
 }
 
 func (w *Web) logoutHandler(c *gin.Context) {
 	session := sessions.Default(c)
-	session.Delete(accessTokenId)
+	session.Delete(tokenCookie)
 	session.Save()
 	c.Redirect(http.StatusFound, w.cfg.Domain)
 }
 
-func (w *Web) authHandler(c *gin.Context) {
+func (w *Web) authGoogleHandler(c *gin.Context) {
+	w.authHandler(c, token.Google)
+}
+
+func (w *Web) authSpotifyHandler(c *gin.Context) {
+	w.authHandler(c, token.Spotify)
+}
+
+func (w *Web) authHandler(c *gin.Context, providerType token.Type) {
 	session := sessions.Default(c)
 	retrievedState := session.Get("state")
 	if retrievedState != c.Query("state") {
@@ -97,29 +109,20 @@ func (w *Web) authHandler(c *gin.Context) {
 		return
 	}
 
-	tok, err := w.cfg.OauthProviders.Google.Exchange(context.Background(), c.Query("code"))
+	tok, err := provider.Config(w.cfg, providerType).Exchange(context.Background(), c.Query("code"))
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
-	tokSerialized, err := json.Marshal(tok)
+	serialized, err := token.NewToken(tok, providerType).Serialize()
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
-	session.Set(accessTokenId, tokSerialized)
+	session.Set(tokenCookie, serialized)
 	session.Save()
-
-	client := w.cfg.OauthProviders.Google.Client(context.Background(), tok)
-	resp, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
-	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
-		return
-	}
-	defer resp.Body.Close()
-
 	c.Redirect(http.StatusFound, w.cfg.Domain+"/members")
 }
 
@@ -130,17 +133,18 @@ func (w *Web) indexHandler(c *gin.Context) {
 }
 
 func (w *Web) mainHandler(c *gin.Context) {
+	ctx := context.Background()
+
 	session := sessions.Default(c)
-	tokSerialized := session.Get(accessTokenId).([]byte)
-	var tok *oauth2.Token
-	err := json.Unmarshal(tokSerialized, &tok)
+	tokSerialized := session.Get(tokenCookie).([]byte)
+	t, err := token.Deserialize(tokSerialized)
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
-	client := w.cfg.OauthProviders.Google.Client(context.Background(), tok)
-	resp, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
+	client := provider.NewClient(ctx, w.cfg, t)
+	resp, err := client.UserInfo()
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
