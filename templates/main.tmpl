@@ -2,7 +2,20 @@
 
 <h1>Main</h1>
 
-User info: {{ .userInfo }}
+<table>
+  <tr>
+    <td>ID</td>
+    <td>{{ .userInfo.ID }}</td>
+  </tr>
+  <tr>
+    <td>Name</td>
+    <td>{{ .userInfo.Name }}</td>
+  </tr>
+  <tr>
+    <td>Email</td>
+    <td>{{ .userInfo.Email }}</td>
+  </tr>
+</table>
 
 <a href="/logout">logout</a>
 

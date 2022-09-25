@@ -1,11 +1,9 @@
 package web
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/gin-gonic/contrib/sessions"
@@ -46,6 +44,7 @@ func New(cfg config.Config) Web {
 	w.private = w.router.Group("/members")
 	w.private.Use(w.requireLogin())
 	w.private.GET("/", w.mainHandler)
+	w.private.GET("/lists", w.listsHandler)
 
 	w.router.Run(":8080")
 
@@ -109,7 +108,7 @@ func (w *Web) authHandler(c *gin.Context, providerType token.Type) {
 		return
 	}
 
-	tok, err := provider.Config(w.cfg, providerType).Exchange(context.Background(), c.Query("code"))
+	tok, err := provider.Config(w.cfg, providerType).Exchange(c.Request.Context(), c.Query("code"))
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
@@ -133,25 +132,58 @@ func (w *Web) indexHandler(c *gin.Context) {
 }
 
 func (w *Web) mainHandler(c *gin.Context) {
-	ctx := context.Background()
+	client, err := w.authProvider(c)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
 
+	userInfo, err := client.UserInfo(c.Request.Context())
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	c.HTML(http.StatusOK, "main.tmpl", gin.H{
+		"userInfo": userInfo,
+	})
+}
+
+func (w *Web) listsHandler(c *gin.Context) {
+	p, err := w.listsProvider(c)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	lists, err := p.Lists(c.Request.Context())
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	c.HTML(http.StatusOK, "lists.tmpl", gin.H{
+		"lists": lists,
+	})
+}
+
+func (w *Web) authProvider(c *gin.Context) (provider.AuthProvider, error) {
 	session := sessions.Default(c)
 	tokSerialized := session.Get(tokenCookie).([]byte)
 	t, err := token.Deserialize(tokSerialized)
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
-		return
+		return nil, fmt.Errorf("failed to deserialize token: %v", err)
 	}
 
-	client := provider.NewClient(ctx, w.cfg, t)
-	resp, err := client.UserInfo()
+	return provider.NewAuthProvider(c.Request.Context(), w.cfg, t)
+}
+
+func (w *Web) listsProvider(c *gin.Context) (provider.ListsProvider, error) {
+	authProvider, err := w.authProvider(c)
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
-		return
+		return nil, fmt.Errorf("failed to get auth provider: %v", err)
 	}
-	defer resp.Body.Close()
-	data, _ := ioutil.ReadAll(resp.Body)
-	c.HTML(http.StatusOK, "main.tmpl", gin.H{
-		"userInfo": string(data),
-	})
+
+	return authProvider.ListsProvider()
 }
