@@ -106,10 +106,8 @@ func (w *Web) authHandler(c *gin.Context) {
 		return
 	}
 	defer resp.Body.Close()
-	data, _ := ioutil.ReadAll(resp.Body)
-	c.Writer.Write([]byte("<html><title>Golang Google</title> <body> User info: " + string(data) + " <br> Access token: " + tok.AccessToken + " <br> Token type: " + tok.TokenType + " <br> <a href=\"/members\">Go to members</a></body></html>"))
 
-	c.Status(http.StatusOK)
+	c.Redirect(http.StatusFound, w.cfg.Domain+"/members")
 }
 
 func (w *Web) indexHandler(c *gin.Context) {
