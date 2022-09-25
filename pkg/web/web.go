@@ -15,6 +15,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
+const accessTokenId = "access_token"
+
 type Web struct {
 	cfg     config.Config
 	store   sessions.CookieStore
@@ -33,13 +35,16 @@ func New(cfg config.Config) Web {
 	w.router.Use(sessions.Sessions("goquestsession", w.store))
 	w.router.LoadHTMLGlob(cfg.Templates)
 
+	// Logged out area.
 	w.router.GET("/", w.indexHandler)
 	w.router.GET("/login", w.loginHandler)
+	w.router.GET("/logout", w.logoutHandler)
 	w.router.GET("/auth", w.authHandler)
 
+	// Logged in area.
 	w.private = w.router.Group("/members")
 	w.private.Use(w.requireLogin())
-	w.private.GET("/", w.welcomeHandler)
+	w.private.GET("/", w.mainHandler)
 
 	w.router.Run(":8080")
 
@@ -49,9 +54,10 @@ func New(cfg config.Config) Web {
 func (w *Web) requireLogin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		session := sessions.Default(c)
-		tok := session.Get("token")
+		tok := session.Get(accessTokenId)
 		if tok == nil {
-			c.AbortWithError(http.StatusUnauthorized, fmt.Errorf("invalid session state: "))
+			c.Abort()
+			c.Redirect(http.StatusFound, w.cfg.Domain)
 			return
 		}
 		c.Next()
@@ -76,6 +82,13 @@ func (w *Web) loginHandler(c *gin.Context) {
 	c.Writer.Write([]byte("<html><title>Golang Google</title> <body> <a href='" + w.cfg.OauthProviders.Google.AuthCodeURL(state) + "'><button>Login with Google!</button> </a> </body></html>"))
 }
 
+func (w *Web) logoutHandler(c *gin.Context) {
+	session := sessions.Default(c)
+	session.Delete(accessTokenId)
+	session.Save()
+	c.Redirect(http.StatusFound, w.cfg.Domain)
+}
+
 func (w *Web) authHandler(c *gin.Context) {
 	session := sessions.Default(c)
 	retrievedState := session.Get("state")
@@ -96,7 +109,7 @@ func (w *Web) authHandler(c *gin.Context) {
 		return
 	}
 
-	session.Set("token", tokSerialized)
+	session.Set(accessTokenId, tokSerialized)
 	session.Save()
 
 	client := w.cfg.OauthProviders.Google.Client(context.Background(), tok)
@@ -116,9 +129,9 @@ func (w *Web) indexHandler(c *gin.Context) {
 	})
 }
 
-func (w *Web) welcomeHandler(c *gin.Context) {
+func (w *Web) mainHandler(c *gin.Context) {
 	session := sessions.Default(c)
-	tokSerialized := session.Get("token").([]byte)
+	tokSerialized := session.Get(accessTokenId).([]byte)
 	var tok *oauth2.Token
 	err := json.Unmarshal(tokSerialized, &tok)
 	if err != nil {
@@ -134,5 +147,7 @@ func (w *Web) welcomeHandler(c *gin.Context) {
 	}
 	defer resp.Body.Close()
 	data, _ := ioutil.ReadAll(resp.Body)
-	c.Writer.Write([]byte("<html><title>Golang Google</title> <body> User info: " + string(data) + "</body></html>"))
+	c.HTML(http.StatusOK, "main.tmpl", gin.H{
+		"userInfo": string(data),
+	})
 }
