@@ -45,6 +45,7 @@ func New(cfg config.Config) Web {
 	w.private.Use(w.requireLogin())
 	w.private.GET("/", w.mainHandler)
 	w.private.GET("/lists", w.listsHandler)
+	w.private.GET("/lists/:id", w.listDetailsHandler)
 
 	w.router.Run(":8080")
 
@@ -163,6 +164,30 @@ func (w *Web) listsHandler(c *gin.Context) {
 
 	c.HTML(http.StatusOK, "lists.tmpl", gin.H{
 		"lists": lists,
+	})
+}
+
+func (w *Web) listDetailsHandler(c *gin.Context) {
+	p, err := w.listsProvider(c)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	listID := c.Params.ByName("id")
+	if listID == "" {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	listDetails, err := p.ListDetails(c.Request.Context(), listID)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	c.HTML(http.StatusOK, "list_details.tmpl", gin.H{
+		"listDetails": listDetails,
 	})
 }
 

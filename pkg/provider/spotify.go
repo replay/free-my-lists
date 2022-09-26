@@ -36,15 +36,33 @@ func (s spotifyProvider) UserInfo(ctx context.Context) (UserInfo, error) {
 func (s spotifyProvider) Lists(ctx context.Context) (Lists, error) {
 	var resp Lists
 
-	playlists, err := s.spotify.CurrentUsersPlaylists(ctx)
+	lists, err := s.spotify.CurrentUsersPlaylists(ctx)
 	if err != nil {
 		return resp, err
 	}
 
-	for _, p := range playlists.Playlists {
-		resp.lists = append(resp.lists, List{
-			ID:   p.ID.String(),
-			Name: p.Name,
+	for _, l := range lists.Playlists {
+		resp = append(resp, List{
+			ID:   l.ID.String(),
+			Name: l.Name,
+		})
+	}
+
+	return resp, nil
+}
+
+func (s spotifyProvider) ListDetails(ctx context.Context, listID string) (ListDetails, error) {
+	var resp ListDetails
+
+	list, err := s.spotify.GetPlaylist(ctx, spotify.ID(listID))
+	if err != nil {
+		return resp, err
+	}
+
+	for _, t := range list.Tracks.Tracks {
+		resp.Tracks = append(resp.Tracks, Track{
+			ID:   t.Track.ID.String(),
+			Name: t.Track.Name,
 		})
 	}
 

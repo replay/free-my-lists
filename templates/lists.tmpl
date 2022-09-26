@@ -1,12 +1,13 @@
 <body>
 
-<h1>Lists</h1>
+<h1>List Details</h1>
 
 <table>
-{{range .Lists}}
+{{range .lists}}
   <tr>
     <td>{{.ID}}</td>
     <td>{{.Name}}</td>
+    <td><a href="/members/lists/{{.ID}}">Details</a></td>
   </tr>
 {{end}}
 </table>

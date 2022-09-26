@@ -1,0 +1,16 @@
+<body>
+
+<h1>List Details {{ .listDetails.Name }}</h1>
+
+<table>
+{{range .listDetails.Tracks}}
+  <tr>
+    <td>{{ .Name }}</td>
+  </tr>
+{{end}}
+</table>
+
+<a href="/members/lists">lists</a>
+<a href="/logout">logout</a>
+
+</body>
