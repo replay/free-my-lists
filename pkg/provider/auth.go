@@ -51,6 +51,12 @@ func NewAuthProvider(ctx context.Context, cfg config.Config, t token.Token) (Aut
 
 func (p provider) ListsProvider() (ListsProvider, error) {
 	switch p.token.Provider {
+	case token.Google:
+		g, err := newGoogle(context.Background(), p)
+		if err != nil {
+			return nil, err
+		}
+		return g, nil
 	case token.Spotify:
 		return newSpotify(p), nil
 	default:

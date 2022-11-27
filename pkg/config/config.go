@@ -8,6 +8,7 @@ import (
 	oauthGoogle "golang.org/x/oauth2/google"
 	oauthSpotify "golang.org/x/oauth2/spotify"
 	"google.golang.org/api/people/v1"
+	"google.golang.org/api/youtube/v3"
 )
 
 type Config struct {
@@ -48,7 +49,7 @@ func (c *Config) setDefaults() {
 	c.Templates = "templates/*"
 
 	c.OauthProviders.Google.Endpoint = oauthGoogle.Endpoint
-	c.OauthProviders.Google.Scopes = []string{people.UserinfoProfileScope, people.UserinfoEmailScope}
+	c.OauthProviders.Google.Scopes = []string{people.UserinfoProfileScope, people.UserinfoEmailScope, youtube.YoutubeReadonlyScope}
 	c.OauthProviders.Google.RedirectURL = c.Domain + "/auth/google"
 
 	c.OauthProviders.Spotify.Endpoint = oauthSpotify.Endpoint
