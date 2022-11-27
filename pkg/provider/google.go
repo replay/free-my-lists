@@ -132,5 +132,4 @@ func (s googleProvider) paginatedCall(call func(string) (string, error)) error {
 	}
 
 	return nil
-
 }

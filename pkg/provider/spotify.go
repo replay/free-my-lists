@@ -36,19 +36,29 @@ func (s spotifyProvider) UserInfo(ctx context.Context) (UserInfo, error) {
 func (s spotifyProvider) Lists(ctx context.Context) (Lists, error) {
 	var resp Lists
 
-	lists, err := s.spotify.CurrentUsersPlaylists(ctx)
-	if err != nil {
-		return resp, err
-	}
+	err := s.paginatedCall(func(offset int) (int, bool, error) {
+		limit := 50
+		opts := []spotify.RequestOption{
+			spotify.Limit(limit),
+			spotify.Offset(offset),
+		}
 
-	for _, l := range lists.Playlists {
-		resp = append(resp, List{
-			ID:   l.ID.String(),
-			Name: l.Name,
-		})
-	}
+		lists, err := s.spotify.CurrentUsersPlaylists(ctx, opts...)
+		if err != nil {
+			return 0, false, err
+		}
 
-	return resp, nil
+		for _, l := range lists.Playlists {
+			resp = append(resp, List{
+				ID:   l.ID.String(),
+				Name: l.Name,
+			})
+		}
+
+		return offset + limit, len(lists.Playlists) >= limit, nil
+	})
+
+	return resp, err
 }
 
 func (s spotifyProvider) ListDetails(ctx context.Context, listID string) (ListDetails, error) {
@@ -66,5 +76,21 @@ func (s spotifyProvider) ListDetails(ctx context.Context, listID string) (ListDe
 		})
 	}
 
-	return resp, nil
+	return resp, err
+}
+
+func (s spotifyProvider) paginatedCall(call func(int) (int, bool, error)) error {
+	offset, next, err := call(0)
+	if err != nil {
+		return err
+	}
+
+	for next {
+		offset, next, err = call(offset)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
