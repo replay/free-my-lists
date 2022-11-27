@@ -56,19 +56,27 @@ func (s googleProvider) Lists(ctx context.Context) (Lists, error) {
 		},
 	}
 
-	response, err := s.youtube.Playlists.List([]string{"snippet,contentDetails"}).MaxResults(100).Mine(true).Do()
-	if err != nil {
-		return resp, err
-	}
+	err := s.paginatedCall(func(token string) (string, error) {
+		call := s.youtube.Playlists.List([]string{"snippet,contentDetails"})
+		call = call.MaxResults(100)
+		call = call.Mine(true)
+		call = call.PageToken(token)
+		response, err := call.Do()
+		if err != nil {
+			return "", err
+		}
 
-	for _, playlist := range response.Items {
-		resp = append(resp, List{
-			ID:   playlist.Id,
-			Name: playlist.Snippet.Title,
-		})
-	}
+		for _, playlist := range response.Items {
+			resp = append(resp, List{
+				ID:   playlist.Id,
+				Name: playlist.Snippet.Title,
+			})
+		}
 
-	return resp, nil
+		return response.NextPageToken, nil
+	})
+
+	return resp, err
 }
 
 func (s googleProvider) ListDetails(ctx context.Context, listID string) (ListDetails, error) {
@@ -82,22 +90,47 @@ func (s googleProvider) ListDetails(ctx context.Context, listID string) (ListDet
 	}
 
 	if len(playlist.Items) == 0 {
-		return resp, errors.New("playlist not found")
+		return resp, errors.New("playlist empty")
 	}
 
 	resp.Name = playlist.Items[0].Snippet.Title
 
-	response, err := s.youtube.PlaylistItems.List([]string{"snippet,contentDetails"}).PlaylistId(listID).MaxResults(100).Do()
+	err = s.paginatedCall(func(token string) (string, error) {
+		call := s.youtube.PlaylistItems.List([]string{"snippet,contentDetails"})
+		call = call.PlaylistId(listID)
+		call = call.MaxResults(100)
+		call = call.PageToken(token)
+		response, err := call.Do()
+		if err != nil {
+			return "", err
+		}
+
+		for _, item := range response.Items {
+			resp.Tracks = append(resp.Tracks, Track{
+				ID:   item.Snippet.ResourceId.VideoId,
+				Name: item.Snippet.Title,
+			})
+		}
+
+		return response.NextPageToken, nil
+	})
+
+	return resp, err
+}
+
+func (s googleProvider) paginatedCall(call func(string) (string, error)) error {
+	nextPageToken, err := call("")
 	if err != nil {
-		return resp, err
+		return err
 	}
 
-	for _, item := range response.Items {
-		resp.Tracks = append(resp.Tracks, Track{
-			ID:   item.Snippet.ResourceId.VideoId,
-			Name: item.Snippet.Title,
-		})
+	for nextPageToken != "" {
+		nextPageToken, err = call(nextPageToken)
+		if err != nil {
+			return err
+		}
 	}
 
-	return resp, nil
+	return nil
+
 }
